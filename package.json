@@ -1,0 +1,17 @@
+{
+  "name": "danzclean-tiktok-forge-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Railway-ready TikTok Forge-style FFmpeg encoding API for DanzClean.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "multer": "^1.4.5-lts.1"
+  }
+}
