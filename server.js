@@ -35,7 +35,7 @@ const OUTPUT_DIR =
 
 
 // ============================================================
-// PREPARE DIRECTORIES
+// DIRECTORIES
 // ============================================================
 
 fs.mkdirSync(INPUT_DIR, {
@@ -48,7 +48,7 @@ fs.mkdirSync(OUTPUT_DIR, {
 
 
 // ============================================================
-// ALLOWED VIDEO EXTENSIONS
+// ALLOWED FILES
 // ============================================================
 
 const allowedExt = new Set([
@@ -62,7 +62,7 @@ const allowedExt = new Set([
 
 
 // ============================================================
-// MULTER STORAGE
+// MULTER
 // ============================================================
 
 const storage = multer.diskStorage({
@@ -89,10 +89,6 @@ const storage = multer.diskStorage({
 
 });
 
-
-// ============================================================
-// MULTER UPLOAD
-// ============================================================
 
 const upload = multer({
 
@@ -151,7 +147,7 @@ function getBaseUrl(req) {
 
 
 // ============================================================
-// RUN COMMAND
+// COMMAND RUNNER
 // ============================================================
 
 function runCommand(
@@ -181,7 +177,7 @@ function runCommand(
 
       child.stdout.on(
         "data",
-        (data) => {
+        data => {
 
           stdout +=
             data.toString();
@@ -192,7 +188,7 @@ function runCommand(
 
       child.stderr.on(
         "data",
-        (data) => {
+        data => {
 
           stderr +=
             data.toString();
@@ -203,7 +199,7 @@ function runCommand(
 
       child.on(
         "error",
-        (error) => {
+        error => {
 
           reject(error);
 
@@ -257,26 +253,15 @@ function runCommand(
 // ============================================================
 // X264 PARAMETERS
 //
-// Berdasarkan MediaInfo hasil Vague Forge:
+// Disesuaikan dengan MediaInfo Vague Forge.
 //
-// ref=1
-// bframes=2
-// b-pyramid=0
-// b-adapt=1
-// keyint=30
-// min-keyint=15
-// scenecut=40
-// rc-lookahead=40
-// rc=crf
-// crf=22
-// qcomp=0.60
-// aq=1:1.00
-// me=hex
-// subme=7
+// direct dan ip-ratio TIDAK dipaksa karena x264 sudah
+// menggunakan:
+// direct=1
+// ip_ratio=1.40
 //
-// CHROMA QP OFFSET SENGAJA TIDAK DITULIS.
-// Pada test sebelumnya, memasukkan -2 menghasilkan
-// MediaInfo -4. Kita biarkan x264 memakai default-nya.
+// chroma_qp_offset juga dibiarkan default agar hasil log
+// tetap -2 seperti target Vague.
 // ============================================================
 
 const X264_PARAMS = [
@@ -290,8 +275,6 @@ const X264_PARAMS = [
   "b-adapt=1",
 
   "b-bias=0",
-
-  "direct=1",
 
   "weightb=1",
 
@@ -329,8 +312,6 @@ const X264_PARAMS = [
 
   "filler=0",
 
-  "ip-ratio=1.40",
-
   "aq-mode=1",
 
   "aq-strength=1.0",
@@ -366,7 +347,7 @@ app.get(
         "DanzClean TikTok Forge API",
 
       version:
-        "1.3",
+        "1.4",
 
       status:
         "online",
@@ -441,11 +422,7 @@ app.get(
 
 
 // ============================================================
-// UPLOAD → FFMPEG → DOWNLOAD LINK
-//
-// Tidak perlu mode.
-// Tidak perlu polling.
-// Tidak perlu kirim job ID.
+// ENCODE
 // ============================================================
 
 app.post(
@@ -456,7 +433,7 @@ app.post(
   async (req, res) => {
 
     // --------------------------------------------------------
-    // CHECK FILE
+    // CHECK UPLOAD
     // --------------------------------------------------------
 
     if (!req.file) {
@@ -475,7 +452,7 @@ app.post(
 
 
     // --------------------------------------------------------
-    // PATHS
+    // FILE PATH
     // --------------------------------------------------------
 
     const inputPath =
@@ -497,9 +474,9 @@ app.post(
       );
 
 
-    // --------------------------------------------------------
-    // FFMPEG
-    // --------------------------------------------------------
+    // ========================================================
+    // FFMPEG COMMAND
+    // ========================================================
 
     const args = [
 
@@ -520,26 +497,25 @@ app.post(
 
 
       // ======================================================
-      // AUDIO
-      //
-      // Ambil audio pertama dua kali.
-      //
-      // Tujuannya mendekati hasil Vague yang memiliki
-      // dua audio AAC 325 kbps.
-      //
-      // Kalau input tidak memiliki audio, tanda ? membuat
-      // proses tetap bisa berjalan tanpa audio.
+      // AUDIO #1
       // ======================================================
-
-      "-map",
-      "0:a:0?",
 
       "-map",
       "0:a:0?",
 
 
       // ======================================================
-      // VIDEO ENCODER
+      // AUDIO #2
+      //
+      // Menggunakan audio pertama sebagai sumber track kedua.
+      // ======================================================
+
+      "-map",
+      "0:a:0?",
+
+
+      // ======================================================
+      // VIDEO ENCODING
       // ======================================================
 
       "-c:v",
@@ -568,10 +544,7 @@ app.post(
 
 
       // ======================================================
-      // FRAME RATE
-      //
-      // Tidak memaksa 60 FPS.
-      // FPS input dipertahankan.
+      // FPS
       // ======================================================
 
       "-fps_mode",
@@ -580,12 +553,6 @@ app.post(
 
       // ======================================================
       // AUDIO
-      //
-      // Vague sample:
-      // AAC LC
-      // 325 kbps
-      // 48 kHz
-      // 2 channel
       // ======================================================
 
       "-c:a",
@@ -625,9 +592,9 @@ app.post(
     ];
 
 
-    // --------------------------------------------------------
-    // START ENCODE
-    // --------------------------------------------------------
+    // ========================================================
+    // START
+    // ========================================================
 
     try {
 
@@ -645,7 +612,7 @@ app.post(
       );
 
       console.log(
-        "[DANZCLEAN] Size:",
+        "[DANZCLEAN] Input size:",
         req.file.size,
         "bytes"
       );
@@ -659,7 +626,7 @@ app.post(
 
 
       // ------------------------------------------------------
-      // CHECK OUTPUT
+      // OUTPUT CHECK
       // ------------------------------------------------------
 
       const stat =
@@ -677,23 +644,18 @@ app.post(
 
 
       console.log(
-        "[DANZCLEAN] Encode finished"
+        "[DANZCLEAN] Encode completed"
       );
 
       console.log(
-        "[DANZCLEAN] Output:",
+        "[DANZCLEAN] Output size:",
         stat.size,
         "bytes"
       );
 
-      console.log(
-        "[DANZCLEAN] Download:",
-        downloadUrl
-      );
-
 
       // ------------------------------------------------------
-      // AUTO DELETE
+      // AUTO CLEANUP
       // ------------------------------------------------------
 
       setTimeout(
@@ -760,7 +722,7 @@ app.post(
     catch (error) {
 
       // ------------------------------------------------------
-      // DELETE FAILED FILES
+      // CLEAN FAILED FILE
       // ------------------------------------------------------
 
       try {
@@ -784,7 +746,7 @@ app.post(
 
 
       // ------------------------------------------------------
-      // FFMPEG ERROR
+      // ERROR DETAIL
       // ------------------------------------------------------
 
       const detail =
@@ -888,10 +850,6 @@ app.get(
 app.use(
   (err, _req, res, _next) => {
 
-    // --------------------------------------------------------
-    // FILE TOO LARGE
-    // --------------------------------------------------------
-
     if (
       err instanceof multer.MulterError
     ) {
@@ -926,10 +884,6 @@ app.use(
 
     }
 
-
-    // --------------------------------------------------------
-    // OTHER ERROR
-    // --------------------------------------------------------
 
     if (err) {
 
@@ -973,7 +927,7 @@ app.listen(
     );
 
     console.log(
-      "DanzClean TikTok Forge API"
+      "DanzClean TikTok Forge API v1.4"
     );
 
     console.log(
